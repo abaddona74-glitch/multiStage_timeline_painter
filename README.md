@@ -56,3 +56,25 @@ Implement a UI that displays a multi-stage festival schedule using a scrollable 
     *   Zooming in (indicator updates, scaling works).
     *   Scrolling at zoomed level.
     *   Zooming back to 100%.
+
+## How to Run
+
+### Prerequisites
+*   **Android Studio** (Ladybug or newer recommended)
+*   **Android SDK** (minSdk 26, targetSdk 34)
+*   **JDK 17** or newer
+
+### Steps
+1.  **Open in Android Studio:**
+    *   Launch Android Studio.
+    *   Select **Open** and navigate to the project root directory.
+    *   Wait for Gradle sync to complete. If prompted to generate a Gradle Wrapper, allow it.
+
+2.  **Run the App:**
+    *   Connect an Android device or create an Android Virtual Device (AVD).
+    *   Click the green **Run** button (Shift+F10).
+
+### Troubleshooting
+*   If you see errors about missing `gradlew`, opening the project in Android Studio usually resolves this by generating the wrapper automatically.
+*   Ensure your `local.properties` file (created automatically by Android Studio) points to your Android SDK location.
+
