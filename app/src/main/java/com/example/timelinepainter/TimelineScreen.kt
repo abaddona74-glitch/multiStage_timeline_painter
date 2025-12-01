@@ -15,19 +15,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
@@ -38,30 +36,34 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import java.time.temporal.ChronoUnit
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalTextApi::class)
 @Composable
 fun TimelineScreen() {
-    // State for Zoom and Pan
-    var zoom by remember { mutableFloatStateOf(1f) }
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    var offsetY by remember { mutableFloatStateOf(0f) }
-
-    // State for Overlay Hint
+    val timelineState = rememberTimelineState()
     var showOverlay by remember { mutableStateOf(true) }
 
     // Constants
-    val minZoom = 1f
-    val maxZoom = 2.5f
     val stages = Stage.values()
     val startTimeHour = 12
     val endTimeHour = 23
     val totalHours = endTimeHour - startTimeHour
+    
+    // Base Dimensions (Unzoomed)
+    val baseHourHeight = 120f
+    val headerHeight = 80f
+    val timeColumnWidth = 60f // Space for time labels on the left
 
-    // Hide overlay after 2.5 seconds
+    // Colors (Dark Theme)
+    val backgroundColor = Color(0xFF121212)
+    val columnEvenColor = Color(0xFF1E1E1E)
+    val columnOddColor = Color(0xFF121212)
+    val gridLineColor = Color(0xFF333333)
+    val textColor = Color(0xFFEEEEEE)
+    val timeLabelColor = Color(0xFFAAAAAA)
+    val headerBackgroundColor = Color(0xFF2C2C2C)
+
     LaunchedEffect(Unit) {
         delay(2500)
         showOverlay = false
@@ -70,149 +72,75 @@ fun TimelineScreen() {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(backgroundColor)
     ) {
         val screenWidth = constraints.maxWidth.toFloat()
         val screenHeight = constraints.maxHeight.toFloat()
 
-        // Base dimensions
-        val baseColumnWidth = screenWidth / stages.size
-        // Let's say initially the total height fits the screen or is scrollable?
-        // "In the initial state, the full timeline must fit the screen width."
-        // It doesn't explicitly say it must fit the screen height, but usually timelines are tall.
-        // Let's define a base hour height.
-        val baseHourHeight = 100f // Arbitrary base height in pixels for 1 hour
+        // Calculate base column width to fit screen initially (minus time column)
+        val baseColumnWidth = (screenWidth - timeColumnWidth) / stages.size
 
-        // Calculated dimensions based on zoom
-        val currentColumnWidth = baseColumnWidth * zoom
-        val currentHourHeight = baseHourHeight * zoom
-        val totalContentWidth = currentColumnWidth * stages.size
-        val totalContentHeight = currentHourHeight * totalHours + 100f // + header space
+        // Current Dimensions based on Zoom
+        val currentColumnWidth = baseColumnWidth * timelineState.zoom
+        val currentHourHeight = baseHourHeight * timelineState.zoom
+        
+        // Total Content Size (Unzoomed for State calculation)
+        val totalContentWidthUnzoomed = timeColumnWidth + (baseColumnWidth * stages.size)
+        val totalContentHeightUnzoomed = headerHeight + (baseHourHeight * totalHours) + 100f // padding
 
-        // Text Measurer for drawing text on Canvas
         val textMeasurer = rememberTextMeasurer()
 
-        // Gesture Detector
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     detectTransformGestures { _, pan, zoomChange, _ ->
-                        val oldZoom = zoom
-                        val newZoom = (zoom * zoomChange).coerceIn(minZoom, maxZoom)
-                        zoom = newZoom
-
-                        // Calculate bounds for scrolling
-                        // Content can be larger than screen.
-                        // maxOffset is 0 (aligned to top/left)
-                        // minOffset is screenDimension - contentDimension (aligned to bottom/right)
-
-                        val maxOffsetX = 0f
-                        val minOffsetX = min(0f, screenWidth - totalContentWidth)
-                        val maxOffsetY = 0f
-                        val minOffsetY = min(0f, screenHeight - totalContentHeight)
-
-                        // Adjust offset to keep focus or just simple pan
-                        // Simple pan logic with bounds check:
-                        offsetX = (offsetX + pan.x).coerceIn(minOffsetX, maxOffsetX)
-                        offsetY = (offsetY + pan.y).coerceIn(minOffsetY, maxOffsetY)
-                        
-                        // If we zoomed, we might need to adjust offset to keep center?
-                        // For simplicity in this challenge, we'll stick to simple pan + zoom clamping.
-                        // But to prevent jumping when zooming out from a scrolled position:
-                        if (newZoom != oldZoom) {
-                             // Re-clamp in case zoom out made content smaller than screen or pulled edges in
-                             val newMinOffsetX = min(0f, screenWidth - (baseColumnWidth * newZoom * stages.size))
-                             val newMinOffsetY = min(0f, screenHeight - (baseHourHeight * newZoom * totalHours + 100f))
-                             offsetX = offsetX.coerceIn(newMinOffsetX, 0f)
-                             offsetY = offsetY.coerceIn(newMinOffsetY, 0f)
-                        }
+                        timelineState.transform(
+                            panChange = pan,
+                            zoomChange = zoomChange,
+                            containerSize = Size(screenWidth, screenHeight),
+                            contentSize = Size(totalContentWidthUnzoomed, totalContentHeightUnzoomed)
+                        )
                     }
                 }
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 clipRect {
-                    // Apply translation
-                    withTransform({ translate(left = offsetX, top = offsetY) }) {
+                    // We apply translation to the whole canvas
+                    withTransform({ translate(left = timelineState.offsetX, top = timelineState.offsetY) }) {
                         
-                        // Draw Grid and Stages
-                        stages.forEachIndexed { index, stage ->
-                            val stageX = index * currentColumnWidth
+                        // 1. Draw Stage Columns (Backgrounds)
+                        stages.forEachIndexed { index, _ ->
+                            val x = timeColumnWidth + (index * currentColumnWidth)
+                            val color = if (index % 2 == 0) columnEvenColor else columnOddColor
                             
-                            // Draw Column Background (alternating slightly for visibility?)
-                            if (index % 2 == 1) {
-                                drawRect(
-                                    color = Color(0xFFF5F5F5),
-                                    topLeft = Offset(stageX, 0f),
-                                    size = Size(currentColumnWidth, totalContentHeight)
-                                )
-                            }
-
-                            // Draw Stage Header
-                            val headerHeight = 60f * zoom
                             drawRect(
-                                color = Color.LightGray,
-                                topLeft = Offset(stageX, 0f),
-                                size = Size(currentColumnWidth, headerHeight)
+                                color = color,
+                                topLeft = Offset(x, 0f),
+                                size = Size(currentColumnWidth, headerHeight + (totalHours * currentHourHeight) + 100f)
                             )
                             
-                            val textLayoutResult = textMeasurer.measure(
-                                text = stage.displayName,
-                                style = TextStyle(fontSize = (16 * zoom).sp, fontWeight = FontWeight.Bold)
-                            )
-                            drawText(
-                                textLayoutResult,
-                                topLeft = Offset(
-                                    stageX + (currentColumnWidth - textLayoutResult.size.width) / 2,
-                                    (headerHeight - textLayoutResult.size.height) / 2
-                                )
-                            )
-
-                            // Draw Vertical Lines
+                            // Vertical Divider
                             drawLine(
-                                color = Color.Gray,
-                                start = Offset(stageX, 0f),
-                                end = Offset(stageX, totalContentHeight),
+                                color = gridLineColor,
+                                start = Offset(x, 0f),
+                                end = Offset(x, headerHeight + (totalHours * currentHourHeight) + 100f),
                                 strokeWidth = 1f
                             )
                         }
-                        // Draw last vertical line
-                        drawLine(
-                            color = Color.Gray,
-                            start = Offset(stages.size * currentColumnWidth, 0f),
-                            end = Offset(stages.size * currentColumnWidth, totalContentHeight),
-                            strokeWidth = 1f
-                        )
 
-                        // Draw Time Lines and Labels
-                        val headerOffset = 60f * zoom
+                        // 2. Draw Time Lines (Horizontal)
                         for (i in 0..totalHours) {
-                            val y = headerOffset + i * currentHourHeight
-                            
-                            // Horizontal Line
+                            val y = headerHeight + (i * currentHourHeight)
                             drawLine(
-                                color = Color.LightGray,
+                                color = gridLineColor,
                                 start = Offset(0f, y),
-                                end = Offset(totalContentWidth, y),
+                                end = Offset(timeColumnWidth + (stages.size * currentColumnWidth), y),
                                 strokeWidth = 1f
-                            )
-
-                            // Time Label (drawn on the left or for each column? Let's draw on the left sticky-like or just at x=0)
-                            // To make it visible, let's draw it at the very left of the content, 
-                            // but since we scroll, maybe we should draw it in a separate layer? 
-                            // For this "Canvas only" approach, we draw it here.
-                            val timeText = String.format("%02d:00", startTimeHour + i)
-                            val textResult = textMeasurer.measure(
-                                text = timeText,
-                                style = TextStyle(fontSize = (12 * zoom).sp, color = Color.DarkGray)
-                            )
-                            drawText(
-                                textResult,
-                                topLeft = Offset(10f, y - textResult.size.height / 2)
                             )
                         }
 
-                        // Draw Events
+                        // 3. Draw Events
                         sampleEvents.forEach { event ->
                             val stageIndex = stages.indexOf(event.stage)
                             if (stageIndex != -1) {
@@ -222,57 +150,151 @@ fun TimelineScreen() {
                                 ) / 60f
                                 val durationHours = ChronoUnit.MINUTES.between(event.startTime, event.endTime) / 60f
                                 
-                                val x = stageIndex * currentColumnWidth
-                                val y = headerOffset + startHourDiff * currentHourHeight
+                                val x = timeColumnWidth + (stageIndex * currentColumnWidth)
+                                val y = headerHeight + (startHourDiff * currentHourHeight)
                                 val width = currentColumnWidth
                                 val height = durationHours * currentHourHeight
 
-                                // Draw Event Block
-                                val padding = 4f * zoom
-                                drawRect(
+                                val padding = 6f * timelineState.zoom
+                                val eventRectSize = Size(width - 2 * padding, height - 2 * padding)
+                                val eventTopLeft = Offset(x + padding, y + padding)
+
+                                // Event Background
+                                drawRoundRect(
                                     color = event.color,
-                                    topLeft = Offset(x + padding, y + padding),
-                                    size = Size(width - 2 * padding, height - 2 * padding)
+                                    topLeft = eventTopLeft,
+                                    size = eventRectSize,
+                                    cornerRadius = CornerRadius(8f * timelineState.zoom)
                                 )
 
-                                // Draw Artist Name
-                                // Clip text to block
+                                // Event Text (Clipped)
                                 clipRect(
-                                    left = x + padding,
-                                    top = y + padding,
-                                    right = x + width - padding,
-                                    bottom = y + height - padding
+                                    left = eventTopLeft.x,
+                                    top = eventTopLeft.y,
+                                    right = eventTopLeft.x + eventRectSize.width,
+                                    bottom = eventTopLeft.y + eventRectSize.height
                                 ) {
                                     val artistText = textMeasurer.measure(
                                         text = event.artistName,
-                                        style = TextStyle(fontSize = (14 * zoom).sp, fontWeight = FontWeight.Medium, color = Color.White)
+                                        style = TextStyle(
+                                            fontSize = (14 * timelineState.zoom).sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
                                     )
+                                    val timeText = textMeasurer.measure(
+                                        text = "${event.startTime} - ${event.endTime}",
+                                        style = TextStyle(
+                                            fontSize = (10 * timelineState.zoom).sp,
+                                            color = Color.White.copy(alpha = 0.8f)
+                                        )
+                                    )
+
                                     drawText(
                                         artistText,
-                                        topLeft = Offset(x + padding + 10f, y + padding + 10f)
+                                        topLeft = eventTopLeft + Offset(8f, 8f)
+                                    )
+                                    drawText(
+                                        timeText,
+                                        topLeft = eventTopLeft + Offset(8f, 8f + artistText.size.height)
                                     )
                                 }
                             }
                         }
+                    } // End of scrolled content
+
+                    // 4. Sticky Headers (Stages) - Only translate X, keep Y fixed at top
+                    // We need to redraw the header background over the scrolled content at the top
+                    // But wait, if we scroll Y, the headers should scroll away? 
+                    // Usually headers are sticky. Let's make them sticky.
+                    
+                    // To make sticky headers, we DON'T apply the Y translation to them.
+                    // But we DO apply the X translation.
+                    
+                    // Draw Header Background
+                    drawRect(
+                        color = headerBackgroundColor,
+                        topLeft = Offset(0f, 0f),
+                        size = Size(screenWidth, headerHeight)
+                    )
+
+                    withTransform({ translate(left = timelineState.offsetX, top = 0f) }) {
+                        stages.forEachIndexed { index, stage ->
+                            val x = timeColumnWidth + (index * currentColumnWidth)
+                            
+                            // Header Text
+                            val textResult = textMeasurer.measure(
+                                text = stage.displayName,
+                                style = TextStyle(
+                                    fontSize = (18 * timelineState.zoom).sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor
+                                )
+                            )
+                            
+                            drawText(
+                                textResult,
+                                topLeft = Offset(
+                                    x + (currentColumnWidth - textResult.size.width) / 2,
+                                    (headerHeight - textResult.size.height) / 2
+                                )
+                            )
+                        }
                     }
+
+                    // 5. Sticky Time Column - Only translate Y, keep X fixed at left
+                    // Draw Time Column Background
+                    drawRect(
+                        color = backgroundColor, // Or slightly different
+                        topLeft = Offset(0f, headerHeight),
+                        size = Size(timeColumnWidth, screenHeight)
+                    )
+                    
+                    withTransform({ translate(left = 0f, top = timelineState.offsetY) }) {
+                        for (i in 0..totalHours) {
+                            val y = headerHeight + (i * currentHourHeight)
+                            // Only draw if visible to save perf? Canvas handles culling mostly.
+                            
+                            val timeText = String.format("%02d:00", startTimeHour + i)
+                            val textResult = textMeasurer.measure(
+                                text = timeText,
+                                style = TextStyle(
+                                    fontSize = (12 * timelineState.zoom).sp,
+                                    color = timeLabelColor,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            )
+                            
+                            drawText(
+                                textResult,
+                                topLeft = Offset(
+                                    (timeColumnWidth - textResult.size.width) / 2,
+                                    y - (textResult.size.height / 2)
+                                )
+                            )
+                        }
+                    }
+                    
+                    // 6. Corner Box (Top-Left intersection)
+                    drawRect(
+                        color = headerBackgroundColor,
+                        topLeft = Offset(0f, 0f),
+                        size = Size(timeColumnWidth, headerHeight)
+                    )
                 }
             }
         }
 
         // Zoom Indicator
-        // "It updates in real time as the user zooms in or out, but values are shown only in 10% increments"
-        if (zoom > 1.01f) { // Show only when zoomed in slightly? Or always when zooming? 
-            // Requirement: "When zooming, a Zoom Indicator must appear"
-            // Let's show it always if zoom > 1.0 or maybe just always for the demo.
-            // "values are shown only in 10% increments" -> Round to nearest 10%
-            val zoomPercent = (zoom * 100).roundToInt()
-            val displayZoom = (zoomPercent / 10) * 10 // Round down/nearest to 10
+        if (timelineState.zoom > 1.01f) {
+            val zoomPercent = (timelineState.zoom * 100).roundToInt()
+            val displayZoom = (zoomPercent / 10) * 10
             
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 32.dp)
-                    .background(Color.Black.copy(alpha = 0.7f), shape = MaterialTheme.shapes.medium)
+                    .background(Color(0xFF333333).copy(alpha = 0.9f), shape = MaterialTheme.shapes.medium)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
@@ -283,7 +305,7 @@ fun TimelineScreen() {
             }
         }
 
-        // Initial Overlay Hint
+        // Overlay Hint
         AnimatedVisibility(
             visible = showOverlay,
             enter = fadeIn(),
@@ -293,11 +315,11 @@ fun TimelineScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f)), // Darkened/Blurred effect simulation
+                    .background(Color.Black.copy(alpha = 0.7f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Pinch to Zoom",
+                    text = "Pinch to Zoom & Pan",
                     color = Color.White,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
@@ -306,6 +328,4 @@ fun TimelineScreen() {
         }
     }
 }
-
-// Helper extension for translate removed as it is part of DrawScope
 
