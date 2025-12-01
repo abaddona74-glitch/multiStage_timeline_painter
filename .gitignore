@@ -4,6 +4,7 @@
 
 # ---- Build va generated fayllar ----
 build/
+scripts/
 */build/
 app/build/
 bin/

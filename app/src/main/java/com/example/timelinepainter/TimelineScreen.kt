@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,17 +56,19 @@ fun TimelineScreen() {
     val totalHours = endTimeHour - startTimeHour
 
     // Dimensions
-    val baseHourHeight = 100f
-    val stageHeaderHeight = 60f
-    val timeColumnWidth = 80f // Increased from 50f to prevent overlap
+    val baseHourHeight = 100.dp
+    val stageHeaderHeight = 56.dp
+    val gridTopMargin = 28.dp
+    val timeColumnWidth = 44.dp
+    val timeColumnLeftPadding = 12.dp
     // Removed topBarHeight as title is removed
 
     // Colors (Light / Cream Theme)
-    val creamBackground = Color(0xFFFFFBF2)
-    val darkBrownText = Color(0xFF3E2723)
-    val gridLineColor = Color(0xFFE0E0E0) // Very faint
-    val timeLabelColor = Color(0xFF757575)
-    val overlayColor = Color(0x993E2723) // Semi-transparent brown
+    val creamBackground = Color(0xFFFFFFF0) // Surface
+    val darkBrownText = Color(0xFF421E17) // Text-Primary
+    val gridLineColor = Color(0xFFE8DBC3) // Outline
+    val timeLabelColor = Color(0xFF786B68) // Text-Secondary
+    val overlayColor = Color(0xBF221513) // Overlay (75% alpha)
 
     LaunchedEffect(Unit) {
         delay(2500)
@@ -83,6 +86,18 @@ fun TimelineScreen() {
             modifier = Modifier
                 .fillMaxSize()
         ) {
+            // Title
+            Text(
+                text = "Festival Schedule",
+                style = TextStyle(
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = timeLabelColor
+                ),
+                modifier = Modifier
+                    .padding(start = 20.dp, top = 20.dp, bottom = 16.dp)
+            )
+
             // Timeline Area
             BoxWithConstraints(
                 modifier = Modifier
@@ -92,14 +107,20 @@ fun TimelineScreen() {
                 val screenWidth = constraints.maxWidth.toFloat()
                 val screenHeight = constraints.maxHeight.toFloat()
 
-                val baseColumnWidth = (screenWidth - timeColumnWidth) / stages.size
+                val density = androidx.compose.ui.platform.LocalDensity.current
+                val baseHourHeightPx = with(density) { baseHourHeight.toPx() }
+                val stageHeaderHeightPx = with(density) { stageHeaderHeight.toPx() }
+                val gridTopMarginPx = with(density) { gridTopMargin.toPx() }
+                val timeColumnWidthPx = with(density) { timeColumnWidth.toPx() }
+
+                val baseColumnWidth = (screenWidth - timeColumnWidthPx) / stages.size
 
                 // Zoomed Dimensions
                 val currentColumnWidth = baseColumnWidth * timelineState.zoom
-                val currentHourHeight = baseHourHeight * timelineState.zoom
+                val currentHourHeight = baseHourHeightPx * timelineState.zoom
 
-                val totalContentWidthUnzoomed = timeColumnWidth + (baseColumnWidth * stages.size)
-                val totalContentHeightUnzoomed = stageHeaderHeight + (baseHourHeight * totalHours) + 50f
+                val totalContentWidthUnzoomed = timeColumnWidthPx + (baseColumnWidth * stages.size)
+                val totalContentHeightUnzoomed = stageHeaderHeightPx + gridTopMarginPx + (baseHourHeightPx * totalHours) + 50f
 
                 val textMeasurer = rememberTextMeasurer()
 
@@ -123,32 +144,34 @@ fun TimelineScreen() {
                             withTransform({ translate(left = timelineState.offsetX, top = timelineState.offsetY) }) {
 
                                 // 1. Grid Lines (Horizontal)
-                                for (i in 0..totalHours) {
-                                    val y = stageHeaderHeight + (i * currentHourHeight)
+                                // Draw lines every 30 minutes (2 lines per hour)
+                                val totalHalfHours = totalHours * 2
+                                for (i in 0..totalHalfHours) {
+                                    val y = stageHeaderHeightPx + gridTopMarginPx + (i * (currentHourHeight / 2))
                                     drawLine(
                                         color = gridLineColor,
-                                        start = Offset(timeColumnWidth, y),
-                                        end = Offset(timeColumnWidth + (stages.size * currentColumnWidth), y),
+                                        start = Offset(timeColumnWidthPx, y),
+                                        end = Offset(timeColumnWidthPx + (stages.size * currentColumnWidth), y),
                                         strokeWidth = 1f
                                     )
                                 }
 
                                 // 2. Grid Lines (Vertical)
                                 stages.forEachIndexed { index, _ ->
-                                    val x = timeColumnWidth + (index * currentColumnWidth)
+                                    val x = timeColumnWidthPx + (index * currentColumnWidth)
                                     drawLine(
                                         color = gridLineColor,
-                                        start = Offset(x, 0f),
-                                        end = Offset(x, stageHeaderHeight + (totalHours * currentHourHeight)),
+                                        start = Offset(x, stageHeaderHeightPx),
+                                        end = Offset(x, stageHeaderHeightPx + gridTopMarginPx + (totalHours * currentHourHeight)),
                                         strokeWidth = 1f
                                     )
                                 }
                                 // Last vertical line
-                                val lastX = timeColumnWidth + (stages.size * currentColumnWidth)
+                                val lastX = timeColumnWidthPx + (stages.size * currentColumnWidth)
                                 drawLine(
                                     color = gridLineColor,
-                                    start = Offset(lastX, 0f),
-                                    end = Offset(lastX, stageHeaderHeight + (totalHours * currentHourHeight)),
+                                    start = Offset(lastX, stageHeaderHeightPx),
+                                    end = Offset(lastX, stageHeaderHeightPx + gridTopMarginPx + (totalHours * currentHourHeight)),
                                     strokeWidth = 1f
                                 )
 
@@ -162,8 +185,8 @@ fun TimelineScreen() {
                                         ) / 60f
                                         val durationHours = ChronoUnit.MINUTES.between(event.startTime, event.endTime) / 60f
 
-                                        val x = timeColumnWidth + (stageIndex * currentColumnWidth)
-                                        val y = stageHeaderHeight + (startHourDiff * currentHourHeight)
+                                        val x = timeColumnWidthPx + (stageIndex * currentColumnWidth)
+                                        val y = stageHeaderHeightPx + gridTopMarginPx + (startHourDiff * currentHourHeight)
                                         val width = currentColumnWidth
                                         val height = durationHours * currentHourHeight
 
@@ -190,17 +213,17 @@ fun TimelineScreen() {
                                             val timeText = textMeasurer.measure(
                                                 text = timeString,
                                                 style = TextStyle(
-                                                    fontSize = (10 * timelineState.zoom).sp,
-                                                    color = Color.Black.copy(alpha = 0.6f)
+                                                    fontSize = (12 * timelineState.zoom).sp,
+                                                    color = darkBrownText
                                                 )
                                             )
 
                                             val artistText = textMeasurer.measure(
                                                 text = event.artistName,
                                                 style = TextStyle(
-                                                    fontSize = (14 * timelineState.zoom).sp,
+                                                    fontSize = (16 * timelineState.zoom).sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color.Black.copy(alpha = 0.8f)
+                                                    color = darkBrownText
                                                 )
                                             )
 
@@ -221,12 +244,12 @@ fun TimelineScreen() {
                             drawRect(
                                 color = creamBackground,
                                 topLeft = Offset(0f, 0f),
-                                size = Size(screenWidth, stageHeaderHeight)
+                                size = Size(screenWidth, stageHeaderHeightPx)
                             )
 
                             withTransform({ translate(left = timelineState.offsetX, top = 0f) }) {
                                 stages.forEachIndexed { index, stage ->
-                                    val x = timeColumnWidth + (index * currentColumnWidth)
+                                    val x = timeColumnWidthPx + (index * currentColumnWidth)
 
                                     val textResult = textMeasurer.measure(
                                         text = stage.displayName,
@@ -241,7 +264,7 @@ fun TimelineScreen() {
                                         textResult,
                                         topLeft = Offset(
                                             x + (currentColumnWidth - textResult.size.width) / 2,
-                                            (stageHeaderHeight - textResult.size.height) / 2
+                                            (stageHeaderHeightPx - textResult.size.height) / 2
                                         )
                                     )
                                 }
@@ -250,13 +273,14 @@ fun TimelineScreen() {
                             // Sticky Time Column - Y scrolls, X fixed
                             drawRect(
                                 color = creamBackground,
-                                topLeft = Offset(0f, stageHeaderHeight),
-                                size = Size(timeColumnWidth, screenHeight)
+                                topLeft = Offset(0f, stageHeaderHeightPx),
+                                size = Size(timeColumnWidthPx, screenHeight)
                             )
 
                             withTransform({ translate(left = 0f, top = timelineState.offsetY) }) {
+                                val timeColumnLeftPaddingPx = with(density) { timeColumnLeftPadding.toPx() }
                                 for (i in 0..totalHours) {
-                                    val y = stageHeaderHeight + (i * currentHourHeight)
+                                    val y = stageHeaderHeightPx + gridTopMarginPx + (i * currentHourHeight)
                                     val timeText = String.format("%02d:00", startTimeHour + i)
                                     val textResult = textMeasurer.measure(
                                         text = timeText,
@@ -269,8 +293,8 @@ fun TimelineScreen() {
                                     drawText(
                                         textResult,
                                         topLeft = Offset(
-                                            (timeColumnWidth - textResult.size.width) / 2,
-                                            y - (textResult.size.height / 2)
+                                            timeColumnLeftPaddingPx,
+                                            y - (textResult.size.height / 2) // Aligned with the line
                                         )
                                     )
                                 }
@@ -280,7 +304,7 @@ fun TimelineScreen() {
                             drawRect(
                                 color = creamBackground,
                                 topLeft = Offset(0f, 0f),
-                                size = Size(timeColumnWidth, stageHeaderHeight)
+                                size = Size(timeColumnWidthPx, stageHeaderHeightPx)
                             )
                         }
                     }
@@ -308,6 +332,29 @@ fun TimelineScreen() {
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
+
+        // Zoom Indicator
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp)
+                .size(width = 108.dp, height = 32.dp)
+                .background(
+                    color = Color(0xBF221513),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            val zoomPercent = (timelineState.zoom * 10).roundToInt() * 10
+            Text(
+                text = "Zoom: $zoomPercent%",
+                style = TextStyle(
+                    fontSize = 14.sp,
+                    color = Color(0xFFFFFFF0),
+                    fontWeight = FontWeight.Medium
+                )
+            )
         }
     }
 }

@@ -22,7 +22,7 @@ class TimelineState(
         private set
 
     val minZoom = 1f
-    val maxZoom = 3.0f
+    val maxZoom = 2.5f
 
     fun transform(panChange: androidx.compose.ui.geometry.Offset, zoomChange: Float, containerSize: androidx.compose.ui.geometry.Size, contentSize: androidx.compose.ui.geometry.Size) {
         val oldZoom = zoom

@@ -74,6 +74,83 @@ Implement a UI that displays a multi-stage festival schedule using a scrollable 
     *   Connect an Android device or create an Android Virtual Device (AVD).
     *   Click the green **Run** button (Shift+F10).
 
+### Deploy Over Wi‑Fi (ADB)
+
+If you prefer installing over your device's IP (after a one‑time USB setup):
+
+1. One‑time (with USB plugged):
+     - Enable Developer options and USB debugging on the phone.
+     - Verify device:
+         - `adb devices`
+     - Switch to TCP/IP:
+         - `adb tcpip 5555`
+     - Find the phone IP (or use device Wi‑Fi settings):
+         - `adb shell ip addr show wlan0`
+     - Connect over Wi‑Fi:
+         - `adb connect <PHONE_IP>:5555`
+
+2. Build an APK (first time or after changes):
+     - In Android Studio: Build → Build APK(s). The debug APK will be at `app\build\outputs\apk\debug\app-debug.apk`.
+
+3. Install to the Wi‑Fi device:
+     - Replace with your actual IP (example shown):
+         - `adb -s 192.168.1.181:5555 install -r app\build\outputs\apk\debug\app-debug.apk`
+
+4. Reconnect after device/PC reboot (if needed):
+     - `adb connect <PHONE_IP>:5555`
+
+Alternatively, use the provided Windows helper script:
+
+- `scripts\install_over_ip.cmd <PHONE_IP> [port] [apk_path]`
+    - Example:
+        - `scripts\install_over_ip.cmd 192.168.1.181 5555 app\build\outputs\apk\debug\app-debug.apk`
+    - If you omit the IP, the script will try to use the first connected `:5555` device from `adb devices`.
+
+### Build from CMD (no Android Studio)
+
+Since this repo currently has no Gradle Wrapper, either:
+
+1) Install a system Gradle and generate the wrapper
+
+On Windows (CMD):
+
+```
+winget install Gradle
+gradle -v
+gradle wrapper --gradle-version 8.4 --distribution-type all
+.\gradlew.bat --version
+.\gradlew.bat assembleDebug
+```
+
+If `winget` is unavailable, download Gradle from https://gradle.org/releases/ and add `bin` to PATH, then run the same commands.
+
+2) Use the build+install script (works with wrapper or system Gradle)
+
+```
+scripts\build_and_install_over_ip.cmd 192.168.1.181 5555 debug
+```
+
+This will build the debug APK and install it to the specified IP.
+
+### Use Cached Gradle (no install)
+
+If you already built Android projects on this machine, you likely have cached Gradle distributions under `%USERPROFILE%\.gradle\wrapper\dists`. You can leverage that cache to generate the wrapper and build:
+
+```
+scripts\use_cached_gradle_and_build.cmd
+```
+
+This script:
+- Finds a cached Gradle (prefers 8.2.1 which matches AGP 8.2.0)
+- Runs `gradle wrapper` to add `.\gradlew.bat`
+- Builds: `.\gradlew.bat assembleDebug`
+
+Then install over Wi‑Fi:
+
+```
+adb -s 192.168.1.181:5555 install -r app\build\outputs\apk\debug\app-debug.apk
+```
+
 ### Troubleshooting
 *   If you see errors about missing `gradlew`, opening the project in Android Studio usually resolves this by generating the wrapper automatically.
 *   Ensure your `local.properties` file (created automatically by Android Studio) points to your Android SDK location.
