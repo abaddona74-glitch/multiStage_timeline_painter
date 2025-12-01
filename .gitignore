@@ -17,12 +17,12 @@ output.json
 # ---- Gradle ----
 .gradle/
 gradle-app.setting
-gradle.properties
 gradlew.bat
 gradlew
 gradle-wrapper.properties
 !gradle-wrapper.jar   # qolishi kerak
 local.properties
+
 
 # ---- Android qiladigan vaqtinchalik fayllar ----
 *.dex
