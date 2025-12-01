@@ -1,0 +1,150 @@
+# =========================================
+# Android Studio / IntelliJ FULL .gitignore
+# =========================================
+
+# ---- Build va generated fayllar ----
+build/
+*/build/
+app/build/
+bin/
+gen/
+out/
+intermediates/
+generated/
+captures/
+output.json
+
+# ---- Gradle ----
+.gradle/
+gradle-app.setting
+gradle.properties
+gradlew.bat
+gradlew
+gradle-wrapper.properties
+!gradle-wrapper.jar   # qolishi kerak
+local.properties
+
+# ---- Android qiladigan vaqtinchalik fayllar ----
+*.dex
+*.class
+*.tmp
+*.cache
+*.o
+*.so
+
+# ---- Android paketlari ----
+*.apk
+*.ap_
+*.aab
+*.aar
+*.aapt
+
+# ---- IntelliJ IDEA / Android Studio ----
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# IDEA ichidagi specific fayllar
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/dictionaries
+.idea/libraries
+.idea/modules.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/caches/
+.idea/gradle.xml
+.idea/inspectionProfiles/
+.idea/compiler.xml
+
+# ---- Kotlin / Java ----
+*.kotlin_metadata
+*.ktx
+*.jar
+*.war
+*.ear
+
+# ---- Keystore (XAVFSIZLIK SABABI) ----
+*.keystore
+*.jks
+*.pem
+*.p12
+*.key
+
+# ---- Unity yoki boshqa pluginlar bo‘lsa (ba’zi loyihalarda uchraydi) ----
+*.unitypackage
+Assets/Plugins/Android/*/build/
+
+# ---- NDK / CMake ----
+obj/
+.externalNativeBuild/
+ndkBuild/
+cmake-build-*/
+
+# ---- Logs ----
+*.log
+
+# ---- Lint ----
+lint/
+lint-report.html
+lint-results.xml
+
+# ---- Firebase ----
+google-services.json
+GoogleService-Info.plist
+
+# ---- Crashlytics / Fabric ----
+fabric.properties
+crashlytics-build.properties
+
+# ---- OS tomonidan yaratiladigan fayllar ----
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+*.swp
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.nfs*
+
+# ---- VSCode (agar ishlatilsa) ----
+.vscode/
+
+# ---- Sonar / Code quality tool ----
+.sonar/
+.idea/sonarlint/
+
+# ---- Yopiq manba credentiallar ----
+*.env
+.env.*
+.secret
+*.secret
+secrets.properties
+
+# ---- Jetpack Compose ----
+.compose/
+
+# ---- Flutter + Android kombinatsiya loyihalar ----
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.dart_tool/
+
+# ---- Misc ----
+*.orig
+*.rej
+*.bak
+*.swp
+*.swo
+
+# ---- Test output ----
+test-output/
+reports/

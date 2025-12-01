@@ -26,6 +26,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.ExperimentalTextApi
@@ -132,7 +133,7 @@ fun TimelineScreen() {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 clipRect {
                     // Apply translation
-                    translate(left = offsetX, top = offsetY) {
+                    withTransform({ translate(left = offsetX, top = offsetY) }) {
                         
                         // Draw Grid and Stages
                         stages.forEachIndexed { index, stage ->
